@@ -1,0 +1,14 @@
+{
+    "NOT_BOT_OWNER":       "❌ This command can only be used by the bot owner.",
+    "NOT_BOT_DEVELOPER":   "❌ This command can only be used by bot developers.",
+    "NOT_GUILD_OWNER":     "❌ This command can only be used by the server owner.",
+    "MISSING_PERMISSIONS": "❌ You do not have the required permissions to use this command.",
+    "COMPONENT_AUTHOR_ONLY": "❌ This interaction is not for you.",
+    "COOLDOWN":            "⏳ Please wait **{time}s** before using this command again.",
+    "COMMAND_ERROR":       "⚠️ An unexpected error occurred. Please try again later.",
+    "NOT_IN_GUILD":        "❌ This command can only be used inside a server.",
+    "BOT_MISSING_PERMS":   "❌ I don't have the necessary permissions to do this.",
+    "NSFW_ONLY":           "❌ This command can only be used in NSFW channels.",
+    "LANG_SET_SUCCESS":    "✅ Server language has been set to **{lang}**.",
+    "DB_ERROR":            "❌ A database error occurred."
+}

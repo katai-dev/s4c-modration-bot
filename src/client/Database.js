@@ -1,0 +1,101 @@
+/**
+ * @fileoverview Database Manager
+ * Handles MongoDB connection using Mongoose.
+ * Attach to the client via `client.db` for access anywhere.
+ *
+ * Usage in any command/event:
+ *   const data = await client.db.model('GuildSettings').findOne({ guildId: '...' });
+ */
+
+const mongoose = require('mongoose');
+
+class Database {
+    /**
+     * @param {import('../client/GalaxyClient')} client
+     */
+    constructor(client) {
+        this.client    = client;
+        this.logger    = client.logger;
+        this.mongoose  = mongoose;
+
+        /** @type {mongoose.Connection} */
+        this.connection = mongoose.connection;
+
+        this._registerEvents();
+    }
+
+    /**
+     * Register mongoose connection lifecycle events.
+     * @private
+     */
+    _registerEvents() {
+        this.connection.on('connected', () => {
+            this.logger.success('MongoDB connected successfully.');
+        });
+
+        this.connection.on('disconnected', () => {
+            this.logger.warn('MongoDB disconnected.');
+        });
+
+        this.connection.on('error', (err) => {
+            this.logger.error(`MongoDB error: ${err.message}`);
+        });
+
+        this.connection.on('reconnected', () => {
+            this.logger.success('MongoDB reconnected.');
+        });
+    }
+
+    /**
+     * Connect to MongoDB.
+     * @param {string} uri MongoDB connection URI (from env or config)
+     * @returns {Promise<void>}
+     */
+    async connect(uri) {
+        if (!uri) {
+            this.logger.warn('No MONGODB_URI provided — skipping database connection.');
+            return;
+        }
+
+        try {
+            await mongoose.connect(uri, {
+                serverSelectionTimeoutMS: 5000, // Timeout if can't connect in 5s
+            });
+        } catch (err) {
+            this.logger.error(`MongoDB connection failed: ${err.message}`);
+            this.logger.warn('Bot will continue running without a database connection.');
+        }
+    }
+
+    /**
+     * Disconnect from MongoDB gracefully.
+     * Called automatically on SIGINT/SIGTERM via ErrorHandler.
+     */
+    async disconnect() {
+        if (this.connection.readyState !== 0) {
+            await mongoose.disconnect();
+            this.logger.info('MongoDB disconnected gracefully.');
+        }
+    }
+
+    /**
+     * Check if currently connected.
+     * @returns {boolean}
+     */
+    get isConnected() {
+        return this.connection.readyState === 1; // 1 = connected
+    }
+
+    /**
+     * Get a registered Mongoose model by name.
+     * Use this to access your schemas anywhere via client.db.model('Name').
+     *
+     * @param {string} name
+     * @returns {mongoose.Model}
+     */
+    model(name) {
+        return mongoose.model(name);
+    }
+}
+
+module.exports = Database;

@@ -1,20 +1,26 @@
 {
-  "name": "discordjs-v14-bot-template",
-  "version": "3.0.0",
-  "description": "A Discord bot commands, components and events handler based on discord.js v14 and fully written in JavaScript.",
+  "name": "galaxy-handler",
+  "version": "1.0.0",
+  "description": "A production-grade universal Discord bot handler framework by Galaxy Dev.",
   "main": "src/index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node ."
+    "start": "node .",
+    "dev": "node --watch .",
+    "shard": "node src/shard.js",
+    "dev:shard": "node --watch src/shard.js"
   },
-  "keywords": [],
-  "author": "TFAGaming",
-  "license": "GPL-3.0",
+  "keywords": [
+    "discord",
+    "bot",
+    "handler",
+    "framework"
+  ],
+  "author": "Galaxy Dev",
+  "license": "MIT",
   "dependencies": {
-    "colors": "^1.4.0",
-    "discord.js": "^14.25.0",
-    "discordjs-v14-bot-template": "file:",
-    "dotenv": "^16.4.5",
-    "quick-yaml.db": "^1.2.2"
+    "chalk": "^4.1.2",
+    "discord.js": "^14.16.3",
+    "dotenv": "^16.4.7",
+    "mongoose": "^9.5.0"
   }
 }

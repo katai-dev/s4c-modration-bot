@@ -1,8 +1,17 @@
-node_modules
+# ─── Dependencies ──────────────────────────────────────────────────────────────
+node_modules/
 package-lock.json
 
-# DO NOT REMOVE THESE FOR SECURITY
-src/config.js
+# ─── Environment & Secrets — NEVER commit these ────────────────────────────────
 .env
-database.yml
-terminal.log
+src/config.js
+
+# ─── Runtime Files ─────────────────────────────────────────────────────────────
+logs/
+
+# ─── OS & Editor Files ─────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.log

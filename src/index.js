@@ -1,13 +1,12 @@
 require('dotenv').config();
-const fs = require('fs');
-const DiscordBot = require('./client/DiscordBot');
 
-fs.writeFileSync('./terminal.log', '', 'utf-8');
-const client = new DiscordBot();
+const GalaxyClient = require('./client/GalaxyClient');
+const config       = require('./config');
 
-module.exports = client;
+const client = new GalaxyClient(config);
 
+// Register global error handlers before connecting
+client.systems.errors.register();
+
+// Connect to Discord
 client.connect();
-
-process.on('unhandledRejection', console.error);
-process.on('uncaughtException', console.error);
