@@ -1,0 +1,4 @@
+{
+    "COOLDOWN": "⏳ Please wait **{time}s** before using this command again.",
+    "LANG_SET_SUCCESS": "✅ Server language has been set to **{lang}**."
+}

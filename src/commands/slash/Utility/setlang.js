@@ -21,7 +21,7 @@ module.exports = new SlashCommand({
 
         if (!client.db.isConnected) {
             return interaction.reply({
-                content: interaction._t('DB_ERROR'),
+                content: interaction.t('errors.DB_ERROR'),
                 flags: MessageFlags.Ephemeral
             });
         }
@@ -44,13 +44,13 @@ module.exports = new SlashCommand({
             
             const langName = lang === 'en' ? 'English' : 'Arabic (العربية)';
             await interaction.editReply({
-                content: interaction._t('LANG_SET_SUCCESS', { lang: langName })
+                content: interaction.t('common.LANG_SET_SUCCESS', { lang: langName })
             });
 
         } catch (error) {
             client.logger.error(`Error setting language for guild ${interaction.guild.id}: ${error.message}`);
             await interaction.editReply({
-                content: interaction._t('COMMAND_ERROR')
+                content: interaction.t('errors.COMMAND_ERROR')
             });
         }
     }

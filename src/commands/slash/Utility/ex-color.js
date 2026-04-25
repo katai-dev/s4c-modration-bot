@@ -5,8 +5,8 @@ const Autocomplete = require('../../../structures/Autocomplete');
 // ── Slash Command ──────────────────────────────────────────────────────────────
 module.exports = new SlashCommand({
     data: new SlashCommandBuilder()
-        .setName('color')
-        .setDescription('Get info about a color.')
+        .setName('ex-color')
+        .setDescription('Get info about a color (Example).')
         .addStringOption(opt =>
             opt.setName('name')
                .setDescription('Color name')
@@ -27,13 +27,13 @@ module.exports = new SlashCommand({
 
         if (!hex) {
             return interaction.reply({
-                content: `❌ Unknown color: \`${colorName}\``,
+                content: interaction.t('errors.NOT_FOUND', { item: colorName }) || `❌ Unknown color: \`${colorName}\``,
                 flags: MessageFlags.Ephemeral
             });
         }
 
         await interaction.reply({
-            content: `🎨 **${colorName}** → \`${hex}\``,
+            content: interaction.t('commands.color.result', { color: colorName, hex: hex }),
             flags: MessageFlags.Ephemeral
         });
     }

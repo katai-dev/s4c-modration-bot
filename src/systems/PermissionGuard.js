@@ -25,7 +25,7 @@ class PermissionGuard {
     check(interaction, command) {
         const { users, messages } = this.config;
 
-        const getMsg = (key) => (interaction._t && interaction._t(key)) || messages[key];
+        const getMsg = (key) => (interaction.t && interaction.t(`errors.${key}`)) || messages[key];
 
         // ── Guild-Only ────────────────────────────────────────────────────────
         if (command.guildOnly !== false && !interaction.guild) {

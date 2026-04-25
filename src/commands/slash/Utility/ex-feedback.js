@@ -1,19 +1,27 @@
-const { ActionRowBuilder, ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
-const Button = require('../../structures/Button');
+const {
+    SlashCommandBuilder,
+    ModalBuilder,
+    ActionRowBuilder,
+    TextInputBuilder,
+    TextInputStyle
+} = require('discord.js');
+const SlashCommand = require('../../../structures/SlashCommand');
 
-// This button opens the feedback modal when clicked.
-module.exports = new Button({
-    customId: 'open-example-modal',
+module.exports = new SlashCommand({
+    data: new SlashCommandBuilder()
+        .setName('ex-feedback')
+        .setDescription('Submit feedback via a modal form (Example).'),
+    cooldown: 30,
     run: async (client, interaction) => {
         const modal = new ModalBuilder()
-            .setCustomId('feedback-modal')
+            .setCustomId('ex-feedback-modal')
             .setTitle('📝 Submit Feedback');
 
         const titleInput = new TextInputBuilder()
             .setCustomId('feedback-title')
             .setLabel('Title')
             .setStyle(TextInputStyle.Short)
-            .setPlaceholder('Brief summary...')
+            .setPlaceholder('Brief summary of your feedback...')
             .setRequired(true)
             .setMaxLength(100);
 
@@ -21,7 +29,7 @@ module.exports = new Button({
             .setCustomId('feedback-body')
             .setLabel('Details')
             .setStyle(TextInputStyle.Paragraph)
-            .setPlaceholder('Describe in detail...')
+            .setPlaceholder('Describe your feedback in detail...')
             .setRequired(true)
             .setMaxLength(1000);
 

@@ -1,9 +1,9 @@
 const { ApplicationCommandType, ContextMenuCommandBuilder, EmbedBuilder, MessageFlags } = require('discord.js');
-const ContextMenu = require('../../../structures/ContextMenu');
+const ContextMenu = require('../../structures/ContextMenu');
 
 module.exports = new ContextMenu({
     data: new ContextMenuCommandBuilder()
-        .setName('Message Info')
+        .setName('ex-Message Info')
         .setType(ApplicationCommandType.Message),
     cooldown: 5,
     run: async (client, interaction) => {

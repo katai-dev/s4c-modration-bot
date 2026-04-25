@@ -25,6 +25,7 @@ const CooldownManager = require('../systems/CooldownManager');
 const PermissionGuard = require('../systems/PermissionGuard');
 const ErrorHandler = require('../systems/ErrorHandler');
 const LocaleManager = require('../systems/LocaleManager');
+const RedisManager = require('../systems/RedisManager');
 
 class GalaxyClient extends Client {
 
@@ -103,6 +104,8 @@ class GalaxyClient extends Client {
 
         // ── Systems ────────────────────────────────────────────────────────────
         this.systems = {
+            /** @type {RedisManager} */
+            redis: new RedisManager(this),
             /** @type {CooldownManager} */
             cooldowns: new CooldownManager(),
             /** @type {PermissionGuard} */
@@ -167,9 +170,9 @@ class GalaxyClient extends Client {
             try {
                 // Inject locale data into the message object
                 message.locale = await this._resolveLocale(message);
-                message._t = (key, vars = {}) => this.systems.locale.get(key, message.locale, vars);
+                message.t = (key, vars = {}) => this.systems.locale.t(message.locale, key, vars);
 
-                const getMsg = (key) => message._t(key) || this.config.messages[key];
+                const getMsg = (key) => message.t(`errors.${key}`) || this.config.messages[key];
 
                 // ── Permission Guard ──────────────────────────────────────────
                 const guard = this.systems.permissions.check(message, command);
@@ -178,20 +181,20 @@ class GalaxyClient extends Client {
                 }
 
                 // ── Cooldowns ─────────────────────────────────────────────────
-                const cooldown = this.systems.cooldowns.check(message, command, this);
+                const cooldown = await this.systems.cooldowns.check(message, command, this);
                 if (!cooldown.allowed) {
-                    const msg = this.systems.locale.get('COOLDOWN', message.locale, { time: cooldown.remaining })
+                    const msg = this.systems.locale.t(message.locale, 'common.COOLDOWN', { time: cooldown.remaining })
                         || this.config.messages.COOLDOWN.replace('{time}', cooldown.remaining);
                     return message.reply({ content: msg }).catch(() => { });
                 }
-                this.systems.cooldowns.set(message, command, this);
+                await this.systems.cooldowns.set(message, command, this);
 
                 // ── Execute ───────────────────────────────────────────────────
                 await command.run(this, message, args);
             } catch (err) {
                 this.logger.error(`Prefix command error "${commandName}": ${err.message}`);
                 this.logger.error(err.stack);
-                message.reply({ content: message._t ? message._t('COMMAND_ERROR') : this.config.messages.COMMAND_ERROR }).catch(() => { });
+                message.reply({ content: message.t ? message.t('errors.COMMAND_ERROR') : this.config.messages.COMMAND_ERROR }).catch(() => { });
             }
         });
     }
@@ -221,10 +224,10 @@ class GalaxyClient extends Client {
 
     /**
      * Resolve the prefix for the current message.
-     * Checks the memory cache first, then the database, then falls back to config.
+     * Checks the memory cache first, then Redis, then Database, then config.
      *
      * @param {import('discord.js').Message} message
-     * @returns {Promise<string>|string}
+     * @returns {Promise<string>}
      */
     async _resolvePrefix(message) {
         if (!message.guild) return this.config.commands.prefix.symbol ?? '?';
@@ -234,7 +237,19 @@ class GalaxyClient extends Client {
             return this.cache.prefixes.get(message.guild.id);
         }
 
-        // 2. Check Database
+        // 2. Check Redis cache
+        const redisKey = `prefix:${message.guild.id}`;
+        if (this.systems.redis.isConnected) {
+            try {
+                const cached = await this.systems.redis.connection.get(redisKey);
+                if (cached) {
+                    this.cache.prefixes.set(message.guild.id, cached);
+                    return cached;
+                }
+            } catch { /* Ignore Redis error */ }
+        }
+
+        // 3. Check Database
         if (this.db.isConnected) {
             try {
                 const GuildSettings = this.db.model('GuildSettings');
@@ -245,6 +260,9 @@ class GalaxyClient extends Client {
 
                 if (settings?.prefix) {
                     this.cache.prefixes.set(message.guild.id, settings.prefix);
+                    if (this.systems.redis.isConnected) {
+                        await this.systems.redis.connection.set(redisKey, settings.prefix, 'EX', 3600); // 1 hr
+                    }
                     return settings.prefix;
                 }
             } catch {
@@ -252,7 +270,7 @@ class GalaxyClient extends Client {
             }
         }
 
-        // 3. Fallback to Config
+        // 4. Fallback to Config
         const defaultPrefix = this.config.commands.prefix.symbol ?? '?';
         this.cache.prefixes.set(message.guild.id, defaultPrefix);
         return defaultPrefix;
@@ -260,10 +278,10 @@ class GalaxyClient extends Client {
 
     /**
      * Resolve the preferred locale for the current interaction/message.
-     * Checks memory cache first, then database, then falls back to config.
+     * Checks memory cache first, then Redis, then database, then config.
      *
      * @param {import('discord.js').Interaction|import('discord.js').Message} context
-     * @returns {Promise<string>|string}
+     * @returns {Promise<string>}
      */
     async _resolveLocale(context) {
         if (!context.guild) return this.config.systems?.locale?.default ?? 'en';
@@ -273,7 +291,19 @@ class GalaxyClient extends Client {
             return this.cache.locales.get(context.guild.id);
         }
 
-        // 2. Check Database
+        // 2. Check Redis cache
+        const redisKey = `locale:${context.guild.id}`;
+        if (this.systems.redis.isConnected) {
+            try {
+                const cached = await this.systems.redis.connection.get(redisKey);
+                if (cached) {
+                    this.cache.locales.set(context.guild.id, cached);
+                    return cached;
+                }
+            } catch { /* Ignore Redis error */ }
+        }
+
+        // 3. Check Database
         if (this.db.isConnected) {
             try {
                 const GuildSettings = this.db.model('GuildSettings');
@@ -284,6 +314,9 @@ class GalaxyClient extends Client {
 
                 if (settings?.locale) {
                     this.cache.locales.set(context.guild.id, settings.locale);
+                    if (this.systems.redis.isConnected) {
+                        await this.systems.redis.connection.set(redisKey, settings.locale, 'EX', 3600); // 1 hr
+                    }
                     return settings.locale;
                 }
             } catch {
@@ -291,7 +324,7 @@ class GalaxyClient extends Client {
             }
         }
 
-        // 3. Fallback to Config
+        // 4. Fallback to Config
         const defaultLocale = this.config.systems?.locale?.default ?? 'en';
         this.cache.locales.set(context.guild.id, defaultLocale);
         return defaultLocale;
@@ -314,6 +347,9 @@ class GalaxyClient extends Client {
             this.logger.warn('MONGODB_URI not set — running without database.');
         }
 
+        // ── Connect to Redis (if URI is provided) ──────────────────────────────
+        await this.systems.redis.connect(process.env.REDIS_URI);
+
         try {
             await this.login(process.env.CLIENT_TOKEN);
 
@@ -335,12 +371,13 @@ class GalaxyClient extends Client {
     }
 
     /**
-     * Graceful shutdown — disconnect DB and destroy Discord client.
+     * Graceful shutdown — disconnect DB, Redis and destroy Discord client.
      * Called automatically by ErrorHandler on SIGINT/SIGTERM.
      */
     async shutdown() {
         this.logger.warn('Shutting down gracefully...');
         await this.db.disconnect();
+        await this.systems.redis.disconnect();
         this.logger.destroy();
         this.destroy();
     }

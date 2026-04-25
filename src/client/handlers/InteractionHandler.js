@@ -180,7 +180,7 @@ class InteractionHandler {
 
         // Resolve locale early for guard messages
         const locale = await this.client._resolveLocale(interaction);
-        const getMsg = (key) => this.client.systems.locale.get(key, locale) || config.messages[key];
+        const getMsg = (key) => this.client.systems.locale.t(locale, `errors.${key}`) || config.messages[key];
 
         // ── Guild-Only ──────────────────────────────────────────────────────
         if (command.guildOnly && !interaction.guild) {
@@ -219,15 +219,15 @@ class InteractionHandler {
 
         // ── Cooldowns ───────────────────────────────────────────────────────
         if (this.client.systems.cooldowns) {
-            const cooldownResult = this.client.systems.cooldowns.check(interaction, command);
+            const cooldownResult = await this.client.systems.cooldowns.check(interaction, command, this.client);
             if (!cooldownResult.allowed) {
-                const msg = this.client.systems.locale.get('COOLDOWN', locale, { time: cooldownResult.remaining })
+                const msg = this.client.systems.locale.t(locale, 'common.COOLDOWN', { time: cooldownResult.remaining })
                             || config.messages.COOLDOWN.replace('{time}', cooldownResult.remaining);
                 await this._reply(interaction, msg);
                 return false;
             }
             // Start the cooldown after guard passes
-            this.client.systems.cooldowns.set(interaction, command);
+            await this.client.systems.cooldowns.set(interaction, command, this.client);
         }
 
         return true;
@@ -241,7 +241,7 @@ class InteractionHandler {
         try {
             // Inject locale data into the interaction object
             interaction.locale = await client._resolveLocale(interaction);
-            interaction._t = (key, vars = {}) => client.systems.locale.get(key, interaction.locale, vars);
+            interaction.t = (key, vars = {}) => client.systems.locale.t(interaction.locale, key, vars);
 
             await handler.run(client, interaction);
         } catch (err) {

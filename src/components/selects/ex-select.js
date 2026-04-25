@@ -2,7 +2,7 @@ const { MessageFlags } = require('discord.js');
 const SelectMenu = require('../../structures/SelectMenu');
 
 module.exports = new SelectMenu({
-    customId: 'example-select',
+    customId: 'ex-example-select',
     authorOnly: false,
     run: async (client, interaction) => {
         const selected = interaction.values[0];

@@ -6,12 +6,12 @@
  * Galaxy Handler routes autocomplete interactions to this file automatically.
  */
 
-const Autocomplete = require('../../../structures/Autocomplete');
+const Autocomplete = require('../../structures/Autocomplete');
 
 const COLORS = ['red', 'blue', 'green', 'purple', 'orange', 'yellow', 'pink', 'black', 'white', 'cyan'];
 
 module.exports = new Autocomplete({
-    commandName: 'color',
+    commandName: 'ex-color',
     run: async (client, interaction) => {
         const focused = interaction.options.getFocused().toLowerCase();
 

@@ -2,7 +2,7 @@ const { MessageFlags } = require('discord.js');
 const Modal = require('../../structures/Modal');
 
 module.exports = new Modal({
-    customId: 'feedback-modal',
+    customId: 'ex-feedback-modal',
     run: async (client, interaction) => {
         const title  = interaction.fields.getTextInputValue('feedback-title');
         const body   = interaction.fields.getTextInputValue('feedback-body');

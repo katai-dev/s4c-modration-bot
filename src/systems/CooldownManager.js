@@ -1,7 +1,7 @@
 /**
  * @fileoverview CooldownManager
  * Handles per-user, per-guild, and per-channel cooldowns for commands.
- * Uses in-memory Collections with automatic cleanup via setTimeout.
+ * Supports Redis for distributed caching across shards, falling back to local memory.
  */
 
 const { Collection } = require('discord.js');
@@ -9,16 +9,17 @@ const { Collection } = require('discord.js');
 class CooldownManager {
     constructor() {
         /**
+         * Local fallback map if Redis is not enabled.
          * Map: `${scope}:${scopeId}:${commandKey}` → timestamp (ms) cooldown expires
          * @type {Collection<string, number>}
          */
-        this._store = new Collection();
+        this._localStore = new Collection();
     }
 
     /**
      * Build the unique cooldown key.
      * @param {import('discord.js').Interaction|import('discord.js').Message} interaction
-     * @param {object} command  A SlashCommand or MessageCommand instance.
+     * @param {object} command
      * @param {'user'|'guild'|'channel'} scope
      * @returns {string}
      * @private
@@ -34,15 +35,10 @@ class CooldownManager {
             default:        scopeId = interaction.user?.id ?? interaction.author?.id ?? 'unknown'; break;
         }
 
-        return `${scope}:${scopeId}:${commandName}`;
+        return `cooldown:${scope}:${scopeId}:${commandName}`;
     }
 
     /**
-     * Get the effective cooldown scope for a command.
-     * Prefers command-specific scope, then global config default.
-     * @param {object} command
-     * @param {import('../GalaxyClient')} client
-     * @returns {'user'|'guild'|'channel'}
      * @private
      */
     _getScope(command, client) {
@@ -52,11 +48,6 @@ class CooldownManager {
     }
 
     /**
-     * Get the effective cooldown duration in seconds.
-     * Prefers command-specific, then global config default.
-     * @param {object} command
-     * @param {import('../GalaxyClient')} client
-     * @returns {number} seconds
      * @private
      */
     _getDuration(command, client) {
@@ -68,25 +59,36 @@ class CooldownManager {
 
     /**
      * Check if a user/guild/channel is on cooldown for a command.
-     * @param {import('discord.js').Interaction|import('discord.js').Message} interaction
-     * @param {object} command
-     * @param {import('../GalaxyClient')} [client]
-     * @returns {{ allowed: boolean, remaining: number }} remaining = seconds left (0 if allowed)
+     * @returns {Promise<{ allowed: boolean, remaining: number }>}
      */
-    check(interaction, command, client) {
+    async check(interaction, command, client) {
         const duration = this._getDuration(command, client);
         if (duration <= 0) return { allowed: true, remaining: 0 };
 
         const scope = this._getScope(command, client);
         const key   = this._buildKey(interaction, command, scope);
 
-        if (!this._store.has(key)) return { allowed: true, remaining: 0 };
+        // Try Redis first
+        if (client?.systems?.redis?.isConnected) {
+            const expiresAtStr = await client.systems.redis.connection.get(key);
+            if (!expiresAtStr) return { allowed: true, remaining: 0 };
 
-        const expiresAt = this._store.get(key);
+            const expiresAt = parseInt(expiresAtStr, 10);
+            const now = Date.now();
+            if (now >= expiresAt) return { allowed: true, remaining: 0 };
+
+            const remaining = ((expiresAt - now) / 1000).toFixed(1);
+            return { allowed: false, remaining };
+        }
+
+        // Fallback to local memory
+        if (!this._localStore.has(key)) return { allowed: true, remaining: 0 };
+
+        const expiresAt = this._localStore.get(key);
         const now       = Date.now();
 
         if (now >= expiresAt) {
-            this._store.delete(key);
+            this._localStore.delete(key);
             return { allowed: true, remaining: 0 };
         }
 
@@ -96,11 +98,9 @@ class CooldownManager {
 
     /**
      * Set a cooldown for an interaction/command.
-     * @param {import('discord.js').Interaction|import('discord.js').Message} interaction
-     * @param {object} command
-     * @param {import('../GalaxyClient')} [client]
+     * @returns {Promise<void>}
      */
-    set(interaction, command, client) {
+    async set(interaction, command, client) {
         const duration = this._getDuration(command, client);
         if (duration <= 0) return;
 
@@ -108,34 +108,36 @@ class CooldownManager {
         const key       = this._buildKey(interaction, command, scope);
         const expiresAt = Date.now() + duration * 1000;
 
-        this._store.set(key, expiresAt);
-
-        // Auto-cleanup when cooldown expires
-        setTimeout(() => this._store.delete(key), duration * 1000);
+        if (client?.systems?.redis?.isConnected) {
+            // EX adds expiration in seconds (we use Math.ceil to ensure it doesn't expire too early)
+            await client.systems.redis.connection.set(key, expiresAt.toString(), 'EX', Math.ceil(duration));
+        } else {
+            this._localStore.set(key, expiresAt);
+            setTimeout(() => this._localStore.delete(key), duration * 1000);
+        }
     }
 
     /**
-     * Manually reset a cooldown (e.g. after a failed command).
-     * @param {import('discord.js').Interaction|import('discord.js').Message} interaction
-     * @param {object} command
-     * @param {import('../GalaxyClient')} [client]
+     * Manually reset a cooldown.
+     * @returns {Promise<void>}
      */
-    reset(interaction, command, client) {
+    async reset(interaction, command, client) {
         const scope = this._getScope(command, client);
         const key   = this._buildKey(interaction, command, scope);
-        this._store.delete(key);
+
+        if (client?.systems?.redis?.isConnected) {
+            await client.systems.redis.connection.del(key);
+        } else {
+            this._localStore.delete(key);
+        }
     }
 
     /**
-     * Clear all stored cooldowns.
+     * Clear all stored local cooldowns.
+     * Note: Does not clear Redis.
      */
-    clear() {
-        this._store.clear();
-    }
-
-    /** @returns {number} Total active cooldown entries */
-    get size() {
-        return this._store.size;
+    clearLocal() {
+        this._localStore.clear();
     }
 }
 

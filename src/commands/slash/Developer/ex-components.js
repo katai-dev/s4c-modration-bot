@@ -14,18 +14,18 @@ const SlashCommand = require('../../../structures/SlashCommand');
 
 module.exports = new SlashCommand({
     data: new SlashCommandBuilder()
-        .setName('components')
-        .setDescription('[DEV] Test all interactive components.'),
+        .setName('ex-components')
+        .setDescription('[DEV] Test all interactive components (Example).'),
     devOnly: true,
     run: async (client, interaction) => {
         const buttonRow = new ActionRowBuilder().addComponents(
             new ButtonBuilder()
-                .setCustomId('example-button')
+                .setCustomId('ex-example-button')
                 .setLabel('Click Me')
                 .setStyle(ButtonStyle.Primary)
                 .setEmoji('👋'),
             new ButtonBuilder()
-                .setCustomId('example-button-danger')
+                .setCustomId('ex-example-button-danger')
                 .setLabel('Danger')
                 .setStyle(ButtonStyle.Danger)
                 .setEmoji('⚠️')
@@ -33,7 +33,7 @@ module.exports = new SlashCommand({
 
         const selectRow = new ActionRowBuilder().addComponents(
             new StringSelectMenuBuilder()
-                .setCustomId('example-select')
+                .setCustomId('ex-example-select')
                 .setPlaceholder('Choose an option...')
                 .addOptions(
                     new StringSelectMenuOptionBuilder().setLabel('Option A').setValue('option-a').setEmoji('🍎'),
@@ -44,7 +44,7 @@ module.exports = new SlashCommand({
 
         const modalRow = new ActionRowBuilder().addComponents(
             new ButtonBuilder()
-                .setCustomId('open-example-modal')
+                .setCustomId('ex-open-example-modal')
                 .setLabel('Open Modal')
                 .setStyle(ButtonStyle.Secondary)
                 .setEmoji('📝')

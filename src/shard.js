@@ -18,9 +18,9 @@
  * The ShardingManager handles everything behind the scenes.
  */
 
-require('dotenv').config();
-const { ShardingManager } = require('discord.js');
 const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '../.env') });
+const { ShardingManager } = require('discord.js');
 const chalk = require('chalk');
 
 // How many shards do you want?
