@@ -8,6 +8,8 @@
  */
 
 const mongoose = require('mongoose');
+const path     = require('path');
+const fs       = require('fs');
 
 class Database {
     /**
@@ -58,9 +60,13 @@ class Database {
         }
 
         try {
+            const dbName = this.client.config.development?.enabled ? 'test' : 'prod';
             await mongoose.connect(uri, {
                 serverSelectionTimeoutMS: 5000, // Timeout if can't connect in 5s
+                dbName: dbName
             });
+            this._loadModels();
+            this.logger.info(`MongoDB connecting to database: ${dbName}`);
         } catch (err) {
             this.logger.error(`MongoDB connection failed: ${err.message}`);
             this.logger.warn('Bot will continue running without a database connection.');
@@ -84,6 +90,21 @@ class Database {
      */
     get isConnected() {
         return this.connection.readyState === 1; // 1 = connected
+    }
+
+    /**
+     * Auto-require every .js file in src/database/models so Mongoose
+     * registers all schemas before any command/event calls model().
+     * @private
+     */
+    _loadModels() {
+        const modelsDir = path.join(__dirname, '../database/models');
+        if (!fs.existsSync(modelsDir)) return;
+        for (const file of fs.readdirSync(modelsDir)) {
+            if (!file.endsWith('.js')) continue;
+            require(path.join(modelsDir, file));
+        }
+        this.logger.debug(`Models loaded from ${modelsDir}`);
     }
 
     /**

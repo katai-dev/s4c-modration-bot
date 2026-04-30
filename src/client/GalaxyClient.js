@@ -21,6 +21,7 @@ const CommandHandler = require('./handlers/CommandHandler');
 const ComponentHandler = require('./handlers/ComponentHandler');
 const EventHandler = require('./handlers/EventHandler');
 const InteractionHandler = require('./handlers/InteractionHandler');
+const JobHandler = require('./handlers/JobHandler');
 const CooldownManager = require('../systems/CooldownManager');
 const PermissionGuard = require('../systems/PermissionGuard');
 const ErrorHandler = require('../systems/ErrorHandler');
@@ -123,6 +124,7 @@ class GalaxyClient extends Client {
         this._commandHandler = new CommandHandler(this);
         this._componentHandler = new ComponentHandler(this);
         this._eventHandler = new EventHandler(this);
+        this._jobHandler = new JobHandler(this);
 
         // InteractionHandler self-registers its listener in constructor
         this._interactionHandler = new InteractionHandler(this);
@@ -199,28 +201,7 @@ class GalaxyClient extends Client {
         });
     }
 
-    /**
-     * Automatically require all model files from src/models/.
-     * This registers all Mongoose schemas before any queries run.
-     * @private
-     */
-    _loadModels() {
-        const modelsDir = path.join(__dirname, '../models');
-        if (!fs.existsSync(modelsDir)) return;
 
-        let count = 0;
-        for (const file of fs.readdirSync(modelsDir)) {
-            if (!file.endsWith('.js')) continue;
-            try {
-                require(path.join(modelsDir, file));
-                count++;
-            } catch (err) {
-                this.logger.error(`Failed to load model "${file}": ${err.message}`);
-            }
-        }
-
-        if (count > 0) this.logger.debug(`Loaded ${count} database model(s).`);
-    }
 
     /**
      * Resolve the prefix for the current message.
@@ -339,9 +320,8 @@ class GalaxyClient extends Client {
         this.logger.warn(`Connecting to Discord... (attempt ${this.loginAttempts + 1})`);
 
         // ── Connect to MongoDB (if URI is provided) ────────────────────────────
-        const mongoUri = process.env.MONGODB_URI;
+        const mongoUri = process.env.MONGODB_URI || process.env.MONGO_URI;
         if (mongoUri) {
-            this._loadModels(); // Register all schemas before connecting
             await this.db.connect(mongoUri);
         } else {
             this.logger.warn('MONGODB_URI not set — running without database.');
@@ -351,12 +331,13 @@ class GalaxyClient extends Client {
         await this.systems.redis.connect(process.env.REDIS_URI);
 
         try {
-            await this.login(process.env.CLIENT_TOKEN);
+            await this.login(process.env.CLIENT_TOKEN || process.env.DISCORD_TOKEN);
 
             // Load all handlers after successful login
             this._commandHandler.load();
             this._componentHandler.load();
             this._eventHandler.load();
+            this._jobHandler.load();
 
             // Register application commands
             this.logger.warn('Registering application commands...');

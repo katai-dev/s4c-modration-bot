@@ -44,6 +44,15 @@ const GuildSettingsSchema = new mongoose.Schema({
     logChannelId: {
         type: String,
         default: null
+    },
+
+    // ── Modules / Plugins ──────────────────────────────────────────────────────
+    // Dynamic storage for specific bot features (e.g., tickets, economy)
+    // Access via: settings.modules?.get('tickets')
+    modules: {
+        type: Map,
+        of: mongoose.Schema.Types.Mixed,
+        default: {}
     }
 
 }, {
