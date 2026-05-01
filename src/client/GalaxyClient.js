@@ -193,6 +193,16 @@ class GalaxyClient extends Client {
 
                 // ── Execute ───────────────────────────────────────────────────
                 await command.run(this, message, args);
+
+                // ── Message Deletion ──────────────────────────────────────────
+                const shouldDelete = command.deleteCommand !== null 
+                    ? command.deleteCommand 
+                    : (this.config.commands?.prefix?.deleteCommandMessages || false);
+
+                if (shouldDelete && message.deletable) {
+                    message.delete().catch(() => {});
+                }
+
             } catch (err) {
                 this.logger.error(`Prefix command error "${commandName}": ${err.message}`);
                 this.logger.error(err.stack);

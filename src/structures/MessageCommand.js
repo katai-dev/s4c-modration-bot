@@ -27,22 +27,28 @@ class MessageCommand {
      * @param {boolean}  [options.guildOwnerOnly=false] Restrict to guild owner only.
      * @param {boolean}  [options.nsfw=false]      Allow only in NSFW channels.
      * @param {boolean}  [options.guildOnly=true]  Block usage in DMs.
+     * @param {boolean|null} [options.deleteCommand=null]
+     *   Control auto-deletion of the triggering message after command execution.
+     *   - `true`  — always delete (overrides global config).
+     *   - `false` — never delete (overrides global config).
+     *   - `null`  — inherit from `config.commands.prefix.deleteCommandMessages`.
      * @param {import('discord.js').PermissionResolvable[]} [options.permissions=[]]
      * @param {function(import('./GalaxyClient'), import('discord.js').Message, string[]): Promise<void>} options.run
      */
     constructor(options) {
-        this.name           = options.name;
-        this.description    = options.description ?? 'No description provided.';
-        this.aliases        = options.aliases ?? [];
-        this.cooldown       = options.cooldown ?? 0;
-        this.cooldownScope  = options.cooldownScope ?? null;
-        this.devOnly        = options.devOnly ?? false;
-        this.ownerOnly      = options.ownerOnly ?? false;
+        this.name = options.name;
+        this.description = options.description ?? 'No description provided.';
+        this.aliases = options.aliases ?? [];
+        this.cooldown = options.cooldown ?? 0;
+        this.cooldownScope = options.cooldownScope ?? null;
+        this.devOnly = options.devOnly ?? false;
+        this.ownerOnly = options.ownerOnly ?? false;
         this.guildOwnerOnly = options.guildOwnerOnly ?? false;
-        this.nsfw           = options.nsfw ?? false;
-        this.guildOnly      = options.guildOnly ?? true;
-        this.permissions    = options.permissions ?? [];
-        this.run            = options.run;
+        this.nsfw = options.nsfw ?? false;
+        this.guildOnly = options.guildOnly ?? true;
+        this.deleteCommand = options.deleteCommand ?? null;
+        this.permissions = options.permissions ?? [];
+        this.run = options.run;
 
         /** @internal */
         this.__type = 'message';

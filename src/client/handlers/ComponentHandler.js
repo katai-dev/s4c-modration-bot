@@ -31,7 +31,7 @@ class ComponentHandler {
             const fullPath = path.join(dir, entry.name);
             if (entry.isDirectory()) {
                 results.push(...this._readFiles(fullPath));
-            } else if (entry.name.endsWith('.js')) {
+            } else if (entry.name.endsWith('.js') && !entry.name.startsWith('_')) { // Ignore non-js files and those starting with '_'
                 results.push(fullPath);
             }
         }

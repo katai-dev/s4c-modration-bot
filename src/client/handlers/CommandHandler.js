@@ -7,7 +7,7 @@
 
 const { REST, Routes, Collection } = require('discord.js');
 const path = require('path');
-const fs   = require('fs');
+const fs = require('fs');
 const { validate } = require('../../utils/Validator');
 
 class CommandHandler {
@@ -33,7 +33,7 @@ class CommandHandler {
             const fullPath = path.join(dir, entry.name);
             if (entry.isDirectory()) {
                 results.push(...this._readFiles(fullPath));
-            } else if (entry.name.endsWith('.js')) {
+            } else if (entry.name.endsWith('.js') && !entry.name.startsWith('_')) { // Ignore non-js files and those starting with '_'
                 results.push(fullPath);
             }
         }
@@ -46,6 +46,7 @@ class CommandHandler {
      */
     load() {
         const base = path.join(__dirname, '../../commands');
+        this.client.restCommandsBody = [];
 
         // ── Slash Commands ──────────────────────────────────────────────────
         const slashDir = path.join(base, 'slash');
@@ -162,7 +163,13 @@ class CommandHandler {
      */
     async register(devConfig) {
         const rest = new REST({ version: '10' }).setToken(this.client.token);
-        const body = this.client.restCommandsBody;
+        
+        // Remove duplicate commands by name
+        const uniqueCommands = new Map();
+        for (const cmd of this.client.restCommandsBody) {
+            uniqueCommands.set(cmd.name, cmd);
+        }
+        const body = Array.from(uniqueCommands.values());
 
         if (devConfig.enabled && devConfig.guildId) {
             await rest.put(
