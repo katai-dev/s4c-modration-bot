@@ -372,3 +372,5 @@ client.systems.locale.get('COOLDOWN', 'de', { time: 5 });
 ---
 
 *Built by Galaxy Dev — production-grade, framework-ready.*
+#   T a s k s S y s t e m  
+ 
