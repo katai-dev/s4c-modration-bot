@@ -60,7 +60,7 @@ class Database {
         }
 
         try {
-            const dbName = this.client.config.development?.enabled ? 'test' : 'prod';
+            const dbName = this.client.config.development?.enabled ? 'dev' : 'prod';
             await mongoose.connect(uri, {
                 serverSelectionTimeoutMS: 5000, // Timeout if can't connect in 5s
                 dbName: dbName
