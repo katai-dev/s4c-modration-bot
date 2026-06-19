@@ -32,6 +32,11 @@ const AegisPermissionGuard = require('../systems/AegisPermissionGuard');
 // ── Aegis Services ──────────────────────────────────────────────────────────────
 const { AuditService } = require('../aegis/services/AuditService');
 const ConfigService    = require('../aegis/services/ConfigService');
+const EvidenceService  = require('../aegis/services/EvidenceService');
+const RiskService      = require('../aegis/services/RiskService');
+const ReviewService    = require('../aegis/services/ReviewService');
+const NotificationService = require('../aegis/services/NotificationService');
+const CaseService      = require('../aegis/services/CaseService');
 
 class GalaxyClient extends Client {
 
@@ -135,7 +140,17 @@ class GalaxyClient extends Client {
                 /** @type {AuditService} */
                 audit:  new AuditService(),
                 /** @type {ConfigService} */
-                config: new ConfigService()
+                config: new ConfigService(),
+                /** @type {EvidenceService} */
+                evidence: new EvidenceService(),
+                /** @type {RiskService} */
+                risk: new RiskService(),
+                /** @type {ReviewService} */
+                review: new ReviewService(),
+                /** @type {NotificationService} */
+                notification: new NotificationService(),
+                /** @type {CaseService} */
+                cases: new CaseService()
             }
         };
 

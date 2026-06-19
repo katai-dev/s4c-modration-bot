@@ -52,6 +52,17 @@ const aegisConfigSchema = new mongoose.Schema({
     reviewChannelId:        { type: String,  default: null },
     fallbackChannelId:      { type: String,  default: null },
 
+    // ── Risk Scoring Weights ────────────────────────────────────────────────
+    // Points added to riskScore per approved case category.
+    // Configurable per guild via /config (Phase 5). Defaults are V3 standard.
+    riskWeights: {
+        type: new mongoose.Schema({
+            warn:    { type: Number, default: 1, min: 0 },
+            timeout: { type: Number, default: 3, min: 0 }
+        }, { _id: false }),
+        default: () => ({})
+    },
+
     // ── Role Tier Mappings ──────────────────────────────────────────────────
     roles:                  { type: aegisRolesSchema, default: () => ({}) },
 
@@ -86,6 +97,10 @@ const AEGIS_DEFAULT_CONFIG = {
     enabled: false,
     reviewChannelId: null,
     fallbackChannelId: null,
+    riskWeights: {
+        warn:    1,
+        timeout: 3
+    },
     roles: {
         moderator: null,
         seniorModerator: null,
