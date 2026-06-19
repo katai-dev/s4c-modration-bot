@@ -27,6 +27,11 @@ const PermissionGuard = require('../systems/PermissionGuard');
 const ErrorHandler = require('../systems/ErrorHandler');
 const LocaleManager = require('../systems/LocaleManager');
 const RedisManager = require('../systems/RedisManager');
+const AegisPermissionGuard = require('../systems/AegisPermissionGuard');
+
+// ── Aegis Services ──────────────────────────────────────────────────────────────
+const { AuditService } = require('../aegis/services/AuditService');
+const ConfigService    = require('../aegis/services/ConfigService');
 
 class GalaxyClient extends Client {
 
@@ -117,7 +122,21 @@ class GalaxyClient extends Client {
             locale: new LocaleManager({
                 default: config.systems?.locale?.default ?? 'en',
                 fallback: config.systems?.locale?.fallback ?? 'en'
-            })
+            }),
+            /** @type {AegisPermissionGuard} */
+            aegisPermissions: new AegisPermissionGuard(this)
+        };
+
+        // ── Aegis ──────────────────────────────────────────────────────────────
+        // Services receive `client` as a parameter at call time — not at
+        // construction — so they remain stateless and testable.
+        this.aegis = {
+            services: {
+                /** @type {AuditService} */
+                audit:  new AuditService(),
+                /** @type {ConfigService} */
+                config: new ConfigService()
+            }
         };
 
         // ── Handlers ───────────────────────────────────────────────────────────

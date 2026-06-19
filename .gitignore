@@ -4,14 +4,30 @@ package-lock.json
 
 # ─── Environment & Secrets — NEVER commit these ────────────────────────────────
 .env
+.env.*
 src/config.js
 
 # ─── Runtime Files ─────────────────────────────────────────────────────────────
 logs/
+*.log
+
+# ─── Build / Cache ─────────────────────────────────────────────────────────────
+.cache/
+dist/
+build/
+
+# ─── Test Artifacts ────────────────────────────────────────────────────────────
+coverage/
+.nyc_output/
 
 # ─── OS & Editor Files ─────────────────────────────────────────────────────────
 .DS_Store
 Thumbs.db
+desktop.ini
 .vscode/
 .idea/
-*.log
+*.swp
+*.swo
+
+# ─── Session & Temp ────────────────────────────────────────────────────────────
+SESSION_STATE.md
