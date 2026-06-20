@@ -193,6 +193,177 @@ class CaseService {
 
         return caseDoc;
     }
+
+    /**
+     * Submit a system-generated case (e.g., Escalation).
+     * Bypasses manual rate limits, self-checks, and interaction replies.
+     *
+     * @param {import('../../client/GalaxyClient')} client
+     * @param {string} guildId
+     * @param {object} inputs
+     * @param {string} inputs.targetId
+     * @param {import('mongoose').Document} inputs.punishmentType
+     * @param {import('mongoose').Types.ObjectId[]} [inputs.escalatedFromCaseIds=[]]
+     * @returns {Promise<import('mongoose').Document>}
+     */
+    async createSystemCase(client, guildId, { targetId, punishmentType, escalatedFromCaseIds = [] }) {
+        const moderatorId = 'SYSTEM';
+
+        // 1. Config check
+        const config = await client.aegis.services.config.getConfig(client, guildId);
+        if (!config.enabled || !config.reviewChannelId) {
+            return null; // Don't crash, just abort system cases if misconfigured
+        }
+
+        // 2. Fetch Guild & Member
+        const guild = await client.guilds.fetch(guildId).catch(() => null);
+        if (!guild) return null;
+        
+        const targetMember = await guild.members.fetch(targetId).catch(() => null);
+        if (!targetMember) return null; // Target left the guild
+
+        // 3. Immediate Timeout Application (PRD Rule)
+        if (punishmentType.category === 'timeout') {
+            try {
+                await targetMember.disableCommunicationUntil(
+                    Date.now() + punishmentType.duration,
+                    `Aegis: Timeout applied pending review by SYSTEM (Escalation)`
+                );
+            } catch (err) {
+                client.logger.error(`[CaseService] Failed to apply immediate timeout for ${targetId} in ${guildId} (Escalation): ${err.message}`);
+                // Proceed despite failure so the case gets reviewed
+            }
+        }
+
+        // 4. Generate ID and Fetch Risk Snapshot
+        const caseId = await GuildCounterRepository.nextCaseId(guildId);
+        const user   = await AegisUserRepository.getOrCreate(guildId, targetId);
+
+        // 5. Compute Expiry
+        let expiresAt = null;
+        if (config.caseExpiryEnabled) {
+            expiresAt = new Date(Date.now() + (config.caseExpiryDays ?? 7) * 24 * 60 * 60 * 1000);
+        }
+
+        // 6. DB Write
+        const caseDoc = await CaseRepository.create({
+            guildId,
+            caseId,
+            targetId,
+            moderatorId,
+            punishmentTypeId: punishmentType._id,
+            punishmentTypeSnapshot: {
+                name:               punishmentType.name,
+                category:           punishmentType.category,
+                duration:           punishmentType.duration,
+                warnLimit:          punishmentType.warnLimit,
+                escalationTargetId: punishmentType.escalationTargetId
+            },
+            status: 'Pending',
+            escalatedFromCaseIds,
+            riskTierSnapshot: user.riskTier,
+            expiresAt
+        });
+
+        // 7. Post Review Embed
+        try {
+            const channel = await client.channels.fetch(config.reviewChannelId);
+            if (channel?.isTextBased()) {
+                const { embed, row } = ReviewEmbedBuilder.build({
+                    caseDoc,
+                    targetUser: targetMember.user,
+                    moderatorUser: client.user, // The bot itself represents SYSTEM in the embed
+                    config
+                });
+
+                const msg = await channel.send({ embeds: [embed], components: [row] });
+                await CaseRepository.setReviewMessage(guildId, caseId, msg.id, channel.id);
+                caseDoc.reviewMessageId = msg.id;
+                caseDoc.reviewChannelId = channel.id;
+            }
+        } catch (err) {
+            client.logger.error(`[CaseService] Failed to post review embed for SYSTEM case #${caseId} in ${guildId}: ${err.message}`);
+        }
+
+        // 8. Notify Target
+        await client.aegis.services.notification.notifyPending(client, caseDoc);
+
+        // 9. Audit
+        await client.aegis.services.audit.log(client, {
+            guildId,
+            action:   AUDIT_ACTIONS.CASE_ESCALATED,
+            actorId:  moderatorId,
+            targetId: targetId,
+            caseId:   caseDoc._id,
+            payload:  {
+                caseId,
+                punishmentType:       punishmentType.name,
+                category:             punishmentType.category,
+                triggeredByCaseIds:   escalatedFromCaseIds,
+                riskTier:             user.riskTier
+            }
+        });
+
+        return caseDoc;
+    }
+
+    /**
+     * Expire a pending case.
+     * Updates DB status, reverts timeout, updates embed, and emits audit.
+     *
+     * @param {import('../../client/GalaxyClient')} client
+     * @param {import('mongoose').Document} caseDoc
+     * @returns {Promise<void>}
+     */
+    async expireCase(client, caseDoc) {
+        const guildId = caseDoc.guildId;
+
+        // 1. Update status
+        await CaseRepository.updateStatus(guildId, caseDoc.caseId, 'Expired');
+
+        // 2. Revert Timeout if applicable
+        if (caseDoc.punishmentTypeSnapshot?.category === 'timeout') {
+            try {
+                const guild = await client.guilds.fetch(guildId);
+                const member = await guild.members.fetch(caseDoc.targetId).catch(() => null);
+                if (member) {
+                    await member.disableCommunicationUntil(null, `Aegis: Case #${caseDoc.caseId} expired — timeout reverted`);
+                }
+            } catch (err) {
+                client.logger.error(`[CaseService] Failed to revert timeout for expired case #${caseDoc.caseId} in ${guildId}: ${err.message}`);
+            }
+        }
+
+        // 3. Update Embed
+        if (caseDoc.reviewMessageId && caseDoc.reviewChannelId) {
+            try {
+                const channel = await client.channels.fetch(caseDoc.reviewChannelId).catch(() => null);
+                if (channel?.isTextBased()) {
+                    const message = await channel.messages.fetch(caseDoc.reviewMessageId).catch(() => null);
+                    if (message && message.embeds[0]) {
+                        const builder = new (require('discord.js').EmbedBuilder)(message.embeds[0].data);
+                        ReviewEmbedBuilder.markExpired(builder);
+                        await message.edit({ embeds: [builder], components: [] }); // Remove action row
+                    }
+                }
+            } catch (err) {
+                client.logger.warn(`[CaseService] Failed to update embed for expired case #${caseDoc.caseId}: ${err.message}`);
+            }
+        }
+
+        // 4. Audit
+        await client.aegis.services.audit.log(client, {
+            guildId,
+            action:   AUDIT_ACTIONS.CASE_EXPIRED,
+            actorId:  'SYSTEM',
+            targetId: caseDoc.targetId,
+            caseId:   caseDoc._id,
+            payload:  {
+                caseId:    caseDoc.caseId,
+                expiredAt: new Date()
+            }
+        });
+    }
 }
 
 module.exports = CaseService;

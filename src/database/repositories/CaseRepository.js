@@ -67,6 +67,79 @@ class CaseRepository {
     }
 
     /**
+     * Find all active (un-escalated) warnings of a specific type for a user.
+     * @param {string} guildId
+     * @param {string} targetId
+     * @param {string|import('mongoose').Types.ObjectId} punishmentTypeId
+     * @returns {Promise<import('mongoose').Document[]>}
+     */
+    static async findActiveWarnings(guildId, targetId, punishmentTypeId) {
+        return Case.find({
+            guildId,
+            targetId,
+            punishmentTypeId,
+            status: 'Approved',
+            isEscalated: false,
+            isDeleted: false
+        }).sort({ createdAt: 1 });
+    }
+
+    /**
+     * Mark an array of cases as escalated.
+     * @param {string} guildId
+     * @param {import('mongoose').Types.ObjectId[]} caseIds
+     * @returns {Promise<void>}
+     */
+    static async markEscalated(guildId, caseIds) {
+        await Case.updateMany(
+            { _id: { $in: caseIds }, guildId, isDeleted: false },
+            { $set: { isEscalated: true } }
+        );
+    }
+
+    /**
+     * Mark an array of cases as Cleared.
+     * @param {string} guildId
+     * @param {import('mongoose').Types.ObjectId[]} caseIds
+     * @returns {Promise<void>}
+     */
+    static async markCleared(guildId, caseIds) {
+        await Case.updateMany(
+            { _id: { $in: caseIds }, guildId, isDeleted: false },
+            { $set: { status: 'Cleared' } }
+        );
+    }
+
+    /**
+     * Find cases pending longer than a specific deadlock limit.
+     * @param {string} guildId
+     * @param {Date} olderThan
+     * @returns {Promise<import('mongoose').Document[]>}
+     */
+    static async findDeadlocked(guildId, olderThan) {
+        return Case.find({
+            guildId,
+            status: 'Pending',
+            deadlockPinged: false,
+            isDeleted: false,
+            createdAt: { $lt: olderThan }
+        }).sort({ createdAt: 1 });
+    }
+
+    /**
+     * Mark cases as having been pinged for deadlock.
+     * @param {string} guildId
+     * @param {import('mongoose').Types.ObjectId[]} caseIds
+     * @returns {Promise<void>}
+     */
+    static async markDeadlockPinged(guildId, caseIds) {
+        await Case.updateMany(
+            { _id: { $in: caseIds }, guildId, isDeleted: false },
+            { $set: { deadlockPinged: true } }
+        );
+    }
+
+    /**
      * Find all pending cases for a guild. Used by deadlock escalation job.
      * @param {string} guildId
      * @returns {Promise<import('mongoose').Document[]>}

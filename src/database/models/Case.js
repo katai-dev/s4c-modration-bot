@@ -169,6 +169,13 @@ const CaseSchema = new mongoose.Schema({
         ref:     'Case'
     },
 
+    // True if this case has already triggered an escalation.
+    // Removes it from the active "towards next limit" count.
+    isEscalated: {
+        type:    Boolean,
+        default: false
+    },
+
     // ── Risk Snapshot ──────────────────────────────────────────────────────────
     // Frozen at case creation time. Never recomputed for in-flight cases.
     riskTierSnapshot: {
@@ -196,6 +203,12 @@ const CaseSchema = new mongoose.Schema({
     reviewChannelId: {
         type:    String,
         default: null
+    },
+
+    // True if the DeadlockEscalationJob has already pinged about this case.
+    deadlockPinged: {
+        type:    Boolean,
+        default: false
     },
 
     // ── Soft Delete ────────────────────────────────────────────────────────────

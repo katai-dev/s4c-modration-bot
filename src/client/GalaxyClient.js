@@ -37,6 +37,7 @@ const RiskService      = require('../aegis/services/RiskService');
 const ReviewService    = require('../aegis/services/ReviewService');
 const NotificationService = require('../aegis/services/NotificationService');
 const CaseService      = require('../aegis/services/CaseService');
+const EscalationService = require('../aegis/services/EscalationService');
 
 class GalaxyClient extends Client {
 
@@ -150,7 +151,9 @@ class GalaxyClient extends Client {
                 /** @type {NotificationService} */
                 notification: new NotificationService(),
                 /** @type {CaseService} */
-                cases: new CaseService()
+                cases: new CaseService(),
+                /** @type {EscalationService} */
+                escalation: new EscalationService()
             }
         };
 

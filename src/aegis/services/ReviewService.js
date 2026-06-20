@@ -237,6 +237,23 @@ class ReviewService {
             'ReviewService.applyApproval'
         );
 
+        // ── Process Escalated Warnings ──────────────────────────────────────
+        // If this case was an escalation, the warnings that triggered it must
+        // now be cleared since the escalation is approved.
+        if (caseDoc.escalatedFromCaseIds && caseDoc.escalatedFromCaseIds.length > 0) {
+            await client.systems.errors.wrap(
+                () => CaseRepository.markCleared(guildId, caseDoc.escalatedFromCaseIds),
+                'ReviewService.markCleared'
+            );
+        }
+
+        // ── Trigger Escalation Engine ───────────────────────────────────────
+        // Run asynchronously so it doesn't block the approval response.
+        client.systems.errors.wrap(
+            () => client.aegis.services.escalation.processEscalation(client, guildId, caseDoc.targetId, caseDoc),
+            'ReviewService.processEscalation'
+        );
+
         // ── Notify target ───────────────────────────────────────────────────
         await client.aegis.services.notification.notifyApproval(client, approvedCase ?? caseDoc);
 
