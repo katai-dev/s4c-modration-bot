@@ -140,6 +140,44 @@ class CaseRepository {
     }
 
     /**
+     * Find cases eligible for evidence archival.
+     * Cases must be closed, older than retention threshold, have cloudinary IDs, and not be archived yet.
+     * @param {string} guildId
+     * @param {Date} olderThan
+     * @returns {Promise<import('mongoose').Document[]>}
+     */
+    static async findForEvidenceArchival(guildId, olderThan) {
+        return Case.find({
+            guildId,
+            isDeleted: false,
+            evidenceArchived: false,
+            status: { $in: ['Completed', 'Cleared', 'Rejected', 'Expired'] },
+            'cloudinaryPublicIds.0': { $exists: true }, // Has at least one public ID
+            createdAt: { $lt: olderThan }
+        }).sort({ createdAt: 1 });
+    }
+
+    /**
+     * Mark evidence as archived for a case, clearing the URLs and public IDs.
+     * @param {string} guildId
+     * @param {number} caseId
+     * @returns {Promise<void>}
+     */
+    static async markEvidenceArchived(guildId, caseId) {
+        await Case.updateOne(
+            { guildId, caseId, isDeleted: false },
+            { 
+                $set: { 
+                    evidenceArchived: true, 
+                    evidenceArchivedAt: new Date(),
+                    evidenceUrls: [],
+                    cloudinaryPublicIds: []
+                } 
+            }
+        );
+    }
+
+    /**
      * Find all pending cases for a guild. Used by deadlock escalation job.
      * @param {string} guildId
      * @returns {Promise<import('mongoose').Document[]>}

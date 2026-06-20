@@ -147,6 +147,19 @@ const CaseSchema = new mongoose.Schema({
         default: false
     },
 
+    // ── Evidence Archival (Phase 4) ────────────────────────────────────────────
+    // True if the evidence was successfully purged from Cloudinary by the archival job.
+    // Preserves the fact that evidence once existed for historical auditing.
+    evidenceArchived: {
+        type:    Boolean,
+        default: false
+    },
+
+    evidenceArchivedAt: {
+        type:    Date,
+        default: null
+    },
+
     // ── Duplicate Detection ─────────────────────────────────────────────────────
     duplicateSuspected: {
         type:    Boolean,
